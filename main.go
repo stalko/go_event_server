@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"encoding/json"
 
@@ -38,10 +39,25 @@ func PublishEventCTRL(ctx *fasthttp.RequestCtx) {
 	fmt.Fprintf(ctx, "hello, %s!\n", ctx.UserValue("name"))
 }
 
+// DomainsCTRL ...
+func DomainsCTRL(ctx *fasthttp.RequestCtx) {
+	h, ok := domains[string(ctx.Host())]
+	if !ok {
+		ctx.NotFound()
+		return
+	}
+	h(ctx)
+}
+
 func main() {
 	router := fasthttprouter.New()
+	router.GET("/", DomainsCTRL)
 	router.POST("/listener", ListenerCTRL)
 	router.DELETE("/listener/:name", ListenerUnregisterCTRL)
 	router.POST("/publish/{event}", PublishEventCTRL)
-	fasthttp.ListenAndServe(":8080", router.Handler)
+	server, err := registerHost(router.Handler)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	log.Fatal(server.ListenAndServeTLS(":8080", "", ""))
 }
